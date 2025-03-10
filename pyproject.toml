@@ -1,0 +1,48 @@
+[project]
+name = "py-qsim" # Name on PyPI
+readme = "README.md"
+requires-python = ">=3.7"
+authors = [{ "name" = "Daniil F"}]
+keywords = ["example", "addition", "subtraction", "pybind11"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: POSIX :: Linux",
+]
+dynamic = ["version", "description"]
+
+[build-system]
+requires = [
+    "py-build-cmake~=0.4.2",
+    "pybind11>=2.13.6",
+]
+build-backend = "py_build_cmake.build"
+
+[tool.py-build-cmake.module]
+name = "py_kernel" # Import name
+directory = "src"
+
+[tool.py-build-cmake.sdist]
+# include = ["CMakeLists.txt", "cmake/*.cmake", "src/cpp_kernel"]
+include = ["CMakeLists.txt", "src/cpp_kernel"]
+
+[tool.py-build-cmake.cmake]
+minimum_version = "3.17"
+build_type = "RelWithDebInfo"
+source_path = "."
+build_args = ["-j"]
+install_components = ["python_modules"]
+
+# [tool.py-build-cmake.linux.cmake] # Linux-specific options
+# generator = "Ninja Multi-Config"
+# config = ["Debug", "Release"]
+# options = { "CMAKE_DEBUG_POSTFIX" = "_d" }
+# env = { "CMAKE_PREFIX_PATH" = "${HOME}/.local" }
+

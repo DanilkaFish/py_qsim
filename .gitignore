@@ -4,4 +4,6 @@
 quanlib/include*
 ./old_*
 *bin/*
+.vscode
+src/cpp_kernel/include
 # ext_sources*
