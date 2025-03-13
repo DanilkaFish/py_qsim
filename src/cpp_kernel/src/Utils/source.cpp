@@ -8,11 +8,11 @@ Qubits::Qubits(std::initializer_list<Uint> tot): mQubs{0} {
     }
 }
 
-Uint Qubits::size() const noexcept{
+Uint Qubits::size() const {
     Uint s = 0;
     Uint t = 1;
     for(int i=0; i < consts::MAX_QUBITS; i++){
-        if (mQubs && t ){
+        if (mQubs & t ){
             s++;
         }
         t *= 2;
@@ -21,14 +21,18 @@ Uint Qubits::size() const noexcept{
 }
 
 Str Qubits::toStr(){ 
-    std::string s; 
+    std::string s("Qubs("); 
     Uint t = 1;
     for(int i=0; i < consts::MAX_QUBITS; i++){
-        if (mQubs && t ){
-            s += i;
+
+        if (mQubs & t ){
+            s = s + std::to_string(i) + ", ";
         }
         t *= 2;
     }
+    s.pop_back();
+    s.pop_back();
+    s.push_back(')');
     return s;
 }
 

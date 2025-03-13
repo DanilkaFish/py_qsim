@@ -1,5 +1,5 @@
 [project]
-name = "py-qsim" # Name on PyPI
+name = "py_qsim" # Name on PyPI
 readme = "README.md"
 requires-python = ">=3.7"
 authors = [{ "name" = "Daniil F"}]
@@ -22,11 +22,12 @@ dynamic = ["version", "description"]
 requires = [
     "py-build-cmake~=0.4.2",
     "pybind11>=2.13.6",
+    "pybind11-stubgen~=2.5.1",
 ]
 build-backend = "py_build_cmake.build"
 
 [tool.py-build-cmake.module]
-name = "py_kernel" # Import name
+name = "py_qsim" # Import name
 directory = "src"
 
 [tool.py-build-cmake.sdist]
@@ -38,11 +39,13 @@ minimum_version = "3.17"
 build_type = "RelWithDebInfo"
 source_path = "."
 build_args = ["-j"]
-install_components = ["python_modules"]
+install_components = ["python_modules", "python_stubs"]
 
+[tool.py-build-cmake.stubgen]
+args = ["-v"]
 # [tool.py-build-cmake.linux.cmake] # Linux-specific options
-# generator = "Ninja Multi-Config"
-# config = ["Debug", "Release"]
+# # generator = "Ninja Multi-Config"
+# # config = ["Debug", "Release"]
 # options = { "CMAKE_DEBUG_POSTFIX" = "_d" }
 # env = { "CMAKE_PREFIX_PATH" = "${HOME}/.local" }
 

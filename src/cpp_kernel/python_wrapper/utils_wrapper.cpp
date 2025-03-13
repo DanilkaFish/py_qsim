@@ -1,23 +1,22 @@
 #define PYBIND11_DETAILED_ERROR_MESSAGES
-#include <pybind11/complex.h>
-#include <pybind11/functional.h>
-#include <pybind11/operators.h>
+// #include <pybind11/complex.h>
+// #include <pybind11/functional.h>
+// #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+// #include <pybind11/stl.h>
 
-double add(double l, double r){
-    return l + r;
-}
+#include "typedef.hpp"
+#include "Utils/parameter.hpp"
+#include "Utils/qubits.hpp"
+
+
 namespace py = pybind11;
-PYBIND11_MODULE(addition, m) {
+PYBIND11_MODULE(MODULE_NAME, m) {
+    py::class_<Qubits>(m, "Qubits")
+        .def(py::init<int>(), "Constructor",
+            py::arg("n_qubits"))
+        .def("__str__", &Qubits::toStr, "String representation") ;
     m.doc() = "cppsim python interface";
-    m.def("add", &add, R"pbdoc(
-        Add two numbers
-
-        Some other explanation about the add function.
-    )pbdoc"
-);
-
 //     py::class_<PauliOperator>(m, "PauliOperator")
 //         .def(py::init<std::complex<double>>(), "Constructor",
 //             py::arg("coef") = 1. + 0.i)

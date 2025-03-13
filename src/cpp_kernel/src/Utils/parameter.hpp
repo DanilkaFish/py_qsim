@@ -1,5 +1,6 @@
-#include "typedef.hpp"
+#pragma once
 
+#include "typedef.hpp"
 
 class Parameter{
 public:
