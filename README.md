@@ -1,1 +1,1 @@
-nothin
+shared objects after cmake build are in py_qsim/cpp_lib folder

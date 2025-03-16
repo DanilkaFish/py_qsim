@@ -8,4 +8,6 @@ quanlib/include*
 src/cpp_kernel/include
 mytest.py
 _deps
+*cpp_lib*
+*qiskit*
 # ext_sources*

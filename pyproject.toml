@@ -3,7 +3,7 @@ name = "py_qsim" # Name on PyPI
 readme = "README.md"
 requires-python = ">=3.7"
 authors = [{ "name" = "Daniil F"}]
-keywords = ["example", "addition", "subtraction", "pybind11"]
+keywords = ["example", "pybind11"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
@@ -17,6 +17,7 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 dynamic = ["version", "description"]
+
 
 [build-system]
 requires = [
@@ -32,17 +33,28 @@ directory = "src"
 
 [tool.py-build-cmake.sdist]
 # include = ["CMakeLists.txt", "cmake/*.cmake", "src/cpp_kernel"]
-include = ["CMakeLists.txt", "src/cpp_kernel"]
+include = ["CMakeLists.txt", "cmake/*.cmake", "src/cpp_kernel"]
 
 [tool.py-build-cmake.cmake]
-minimum_version = "3.17"
-build_type = "RelWithDebInfo"
-source_path = "."
+minimum_version = "3.18"
+build_type = "Release"
+source_path = "." # Containing CMakeLists.txt
+options = {}
+# args = ["-Wdev"]
 build_args = ["-j"]
+build_tool_args = []
+install_args = ["--verbose"]
 install_components = ["python_modules", "python_stubs"]
+env = {}
 
 [tool.py-build-cmake.stubgen]
 args = ["-v"]
+
+# [tool.py-build-cmake.linux.cmake] # Linux-specific options
+# generator = "Ninja Multi-Config"
+# config = ["Debug", "Release"]
+# options = { "CMAKE_DEBUG_POSTFIX" = "_d" }
+# env = { "CMAKE_PREFIX_PATH" = "${HOME}/.local" }
 # [tool.py-build-cmake.linux.cmake] # Linux-specific options
 # # generator = "Ninja Multi-Config"
 # # config = ["Debug", "Release"]
