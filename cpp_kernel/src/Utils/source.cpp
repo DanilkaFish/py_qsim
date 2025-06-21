@@ -26,7 +26,7 @@ Uint Qubits::size() const {
     return s;
 }
 
-Str Qubits::to_str(){ 
+Str Qubits::to_str() const{ 
     Str s("Qubs("); 
     _iterate([&s](int i){ s = s + std::to_string(i) + ", "; });
     s.pop_back();

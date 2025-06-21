@@ -63,7 +63,6 @@ class MagicInstruction(Instruction):
     def name(self):
         return "qc"
     
-    
     def apply(self, provider) -> None:
         for ins in self.qc:
             ins.apply(provider, self.qubs)

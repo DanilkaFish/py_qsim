@@ -12,8 +12,8 @@ public:
     Qubits(const std::vector<Uint>& tot);
     void insert(const Uint& i);
     Uint size() const ;
-    Uint get_qubits(){ return _qubs; }
-    Str  to_str();
+    Uint get_qubits() const { return _qubs; }
+    Str  to_str() const;
 private:
     Uint _qubs;
     void _iterate(std::function<void(int)> func) const;

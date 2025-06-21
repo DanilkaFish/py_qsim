@@ -21,7 +21,6 @@ def list_to_qubs_int(ls):
 from quantum_circuit.quantum_circuit import *
 
 class MockProvider:
-
     def __init__(self):
         self.s = ""
         for op, name in vars(OperatorOne).items():
@@ -37,6 +36,7 @@ class MockProvider:
     def expand_2q(self, name, ctrl, trg, **kwargs):
         self.s += name + str(ctrl) + str(trg)
         
+
 class TestQuantumCircuit(unittest.TestCase):
     def test_int_generations(self):
         qc = QuantumCircuit(5)
