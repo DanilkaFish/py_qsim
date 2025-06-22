@@ -1,4 +1,5 @@
 #include "typedef.hpp"
+#include "tensor.hpp"
 #include "shape.hpp"
 
 
@@ -17,297 +18,175 @@ Uint index_sum(Uint val){
 // template Shape<MaxQubit::Q16> prod(const Shape<MaxQubit::Q16>&, const Shape<MaxQubit::Q16>&);
 // template Shape<MaxQubit::Q32> prod(const Shape<MaxQubit::Q32>&, const Shape<MaxQubit::Q32>&);
 
-// -----------------------specialization of mask--------------------------
-template<>
-struct mask<MaxQubit::Q1>{
-    mask()=default;
-    explicit mask(Uint m): m{m}, nq{m} { }
-    mask(const mask& ms): m{ms.m} {} 
-    Uint compress(Uint x) const { return x & m; }
-    Uint expand(Uint x)   const { return x & m; }
-    Uint msk() const { return m; }
-    Uint nq;
-private:
-    Uint m;
-};
+// -----------------------tensor product implementation ---------------------------
 
+template<MaxQubit MQ>
+Tensor<MQ> simple_prod(Uint com_size,
+                       const Shape<MQ>& new_shape, 
+                       const Tensor<MQ>& lt, 
+                       const Tensor<MQ>& rt, 
+                       const std::vector<Uint>& expand,
+                       const mask<MQ>& mask4uncom_r
+                    ){
+    Uint new_size = 1 << (new_shape.size());
+    RawData::DataPtr dptr{new ComplexVec(new_size)};
+    Complex val;
+    for (int j=0; j < new_size; j++){
+        Uint buffer_j = mask4uncom_r.expand(j);
+        val = 0;
+        for(int k=0; k < com_size; k++){
+            val += lt[k] * rt[expand[k] + buffer_j];
+        }
+        (*dptr)[j] = val;
+    }
+    return Tensor<MQ>(new_shape, RawData(dptr));
+}
 
-template<>
-struct mask<MaxQubit::Q2>{
-    mask()=default;
-    explicit mask(Uint m): m{m} { set_mv(); }
-    mask(const mask& ms): m{ms.m}, mv1{ms.mv1} {} 
-    Uint compress(Uint x) const{
-        x = x & m;
-        Uint t = x & mv1; 
-        x = (x ^ t) | (t >> 1);
-        return x;
-    }
-    Uint expand(Uint x) const {
-        x = (((x << 1) ^ x) & mv1) ^ x;
-        return  x & m;
-    }
-    Uint msk() const { return m; }
-    Uint nq;
-private:
-    Uint m;
-    Uint mv1 = 0;
-    void set_mv(){
-        nq = index_sum(m);
-        if (m == 2){
-            mv1 = 2;
+template<MaxQubit MQ>
+Tensor<MQ> buffer_prod(Uint com_size,
+                       const Shape<MQ>& new_shape, 
+                       const Tensor<MQ>& small_tensor, 
+                       const Tensor<MQ>& buffered_tensor, 
+                       const std::vector<Uint>& expand_small,
+                       const std::vector<Uint>& expand_buffered,
+                       const mask<MQ>& mask_small_uncom,
+                       const mask<MQ>& mask_buffered_uncom,
+                       const mask<MQ>& mask_small_new,
+                       const mask<MQ>& mask_buffered_new
+                    ){
+    Uint new_size = 1 << (new_shape.size());
+    RawData::DataPtr dptr{new ComplexVec(new_size)};
+    Complex val;
+    ComplexVec buffer(com_size);
+    for (int j=0; j < (1 << mask_buffered_uncom.nq); j++){
+        Uint index_buffered = mask_buffered_uncom.expand(j);
+        for(int k=0; k < com_size; k++){
+            buffer[k] = buffered_tensor[expand_buffered[k] + index_buffered];
+        }
+        for(int i=0; i < (1 << mask_small_uncom.nq); i++){
+            Uint index_small = mask_small_uncom.expand(i);
+            val = 0;
+            for(int k=0; k < com_size; k++){
+                val += small_tensor[expand_small[k] + index_small] * buffer[k];
+            }
+            (*dptr)[mask_small_new.expand(i) + mask_buffered_new.expand(j)] = val;
         }
     }
-};
+    return Tensor<MQ>(new_shape, RawData(dptr));
+}
 
-template<>
-struct mask<MaxQubit::Q4>{
-    mask()=default;
-    explicit mask(Uint m): m{m} { set_mv(); }
-    mask(const mask& ms): m{ms.m}, mv1{ms.mv1}, mv2{ms.mv2} {} 
-    Uint compress(Uint x) const{
-        x = x & m;
-        Uint t;
-        t = x & mv1; 
-        x = (x ^ t) | (t >> 1);
-        t = x & mv2; 
-        x = (x ^ t) | (t >> 2);
-        return x;
+
+template<MaxQubit MQ>
+Tensor<MQ> operator*(const Tensor<MQ>& lt, const Tensor<MQ>& rt){
+    Shape<MQ> lsh{lt.get_shape()};
+    Shape<MQ> rsh{rt.get_shape()};
+    Shape<MQ> new_shape{prod(lsh, rsh)};
+    mask<MQ> com(lsh.mdown.msk() & rsh.mup.msk());
+    Uint l_size = 1 << lsh.size();
+    Uint r_size = 1 << rsh.size();
+    Uint new_size = 1 << new_shape.size();
+    Uint com_size = 1 << com.nq;
+
+    if (com_size == l_size){
+        mask<MQ> mask4uncom_r((r_size - 1) & (~(rsh.mup.compress(com.msk()) << rsh.mdown.nq)));
+        std::vector<Uint> expandr(com_size);
+        for(int k=0; k < com_size; k++){
+            expandr[k] = com.expand(k) << rsh.mdown.nq;
+        }
+        return simple_prod<MQ>(com_size, new_shape, lt, rt, expandr, mask4uncom_r);
     }
-    Uint expand(Uint x) const {
-        x = (((x << 2) ^ x) & mv2) ^ x;
-        x = (((x << 1) ^ x) & mv1) ^ x;
-        return  x & m;
+    if (com_size == r_size){
+        mask<MQ> mask4uncom_l((l_size - 1) & (~(lsh.mdown.compress(com.msk()))));
+        std::vector<Uint> expandl(com_size);
+        for(int k=0; k < com_size; k++){
+            expandl[k] = com.expand(k);
+        }
+        return simple_prod<MQ>(com_size, new_shape,rt, lt, expandl, mask4uncom_l);
     }
-    Uint msk() const { return m; }
-    Uint nq;
-private:
-    Uint m;
-    Uint mv1;
-    Uint mv2;
-    void set_mv(){
-        nq = index_sum(m);
-        Uint _m = m;
-        Uint mk = (~_m) << 1;
-        Uint mp;
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mv1 = mp & _m; 
-        _m = (_m ^ mv1) | (mv1 >> 1); 
 
-        mk = mk & (~mp); 
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mv2 = mp & _m; 
-        _m = (_m ^ mv2) | (mv2 >> 2); 
-        mk = mk & (~mp); 
+    mask<MQ> mask4uncom_l( (l_size - 1) & (~ (lsh.mdown.compress(com.msk()))) );
+    mask<MQ> mask4uncom_r( (r_size - 1) & (~ (rsh.mup.compress(com.msk()) << rsh.mdown.nq)) );
+    mask<MQ> mask4i((new_size - 1) & ((new_shape.mup.compress(lsh.mup.msk())<<new_shape.mdown.nq)) + new_shape.mdown.compress(lsh.mdown.msk() & (~rsh.mup.msk())));
+    mask<MQ> mask4j((new_size - 1) & mask4i.msk() );
+    std::vector<Uint> expandl(com_size);
+    std::vector<Uint> expandr(com_size);
+
+    mask<MQ> mask4com_l((l_size - 1) ^ mask4uncom_l.msk());
+    mask<MQ> mask4com_r((r_size - 1) ^ mask4uncom_r.msk());
+    for(int k=0; k < com_size; k++){
+        expandl[k] = mask4com_l.expand(k);
+        expandr[k] = mask4com_r.expand(k);
     }
-};
 
-template<>
-struct mask<MaxQubit::Q8>{
-    mask()=default;
-    explicit mask(Uint m): m{m} { set_mv(); }
-    mask(const mask& ms): m{ms.m}, mv1{ms.mv1}, mv2{ms.mv2}, mv4{ms.mv4} {} 
-    Uint compress(Uint x) const{
-        x = x & m;
-        Uint t;
-        t = x & mv1; 
-        x = (x ^ t) | (t >> 1);
-        t = x & mv2; 
-        x = (x ^ t) | (t >> 2);
-        t = x & mv4; 
-        x = (x ^ t) | (t >> 4);
-        return x;
+    if (lsh.size() <= rsh.size()){
+        return buffer_prod<MQ>(com_size, new_shape, lt, rt, expandl, expandr, mask4com_l, mask4com_r, mask4i, mask4j);
+    }else{
+        return buffer_prod<MQ>(com_size, new_shape, rt, lt, expandr, expandl, mask4com_r, mask4com_l, mask4j, mask4i);
     }
-    Uint expand(Uint x) const {
-        x = (((x << 4) ^ x) & mv4) ^ x;
-        x = (((x << 2) ^ x) & mv2) ^ x;
-        x = (((x << 1) ^ x) & mv1) ^ x;
-        return  x & m;
-    }
-    Uint msk() const { return m; }
-    Uint nq;
-private:
-    Uint m;
-    Uint mv1;
-    Uint mv2;
-    Uint mv4;
-    void set_mv(){
-        nq = index_sum(m);
-        Uint _m = m;
-        Uint mk = (~_m) << 1;
-        Uint mp;
+}
 
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mv1 = mp ^ (mp << 4) & _m; 
-        mk = mk & (~mp); 
+template<MaxQubit MQ>
+Tensor<MQ> operator*(const DiagonalTensor<MQ>& lt, const Tensor<MQ>& rt){
+    Shape<MQ> new_shape = prod(lt.shape, rt.shape);
+    RawData::DataPtr dptr{new ComplexVec(1 << new_shape.size())};
+    // product implementation
 
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mv2 = mp ^ (mp << 4) & _m; 
-        _m = (_m ^ mv2) | (mv2 >> 2); 
-        mk = mk & (~mp); 
+    return Tensor<MQ>(new_shape, RawData(dptr));
+}
 
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mv4 = mp ^ (mp << 4) & _m; 
-        _m = (_m ^ mv4) | (mv4 >> 4); 
-        mk = mk & (~mp);
-    }
-};
+template<MaxQubit MQ>
+Tensor<MQ> operator*(const Tensor<MQ>& lt, const DiagonalTensor<MQ>& rt){
+    Shape<MQ> new_shape = prod(lt.shape, rt.shape);
+    RawData::DataPtr dptr{new ComplexVec(1 << new_shape.size())};
+    // product implementation
+
+    return Tensor<MQ>(new_shape, RawData(dptr));
+}
+
+// template<MaxQubit MQ>
+// DiagonalTensor<MQ> operator*(const DiagonalTensor<MQ>&, const DiagonalTensor<MQ>&){
+
+// }
 
 
-template<>
-struct mask<MaxQubit::Q16>{
-    mask()=default;
-    explicit mask(Uint m): m{m} { set_mv(); }
-    mask(const mask& ms): m{ms.m}, mv1{ms.mv1}, mv2{ms.mv2}, mv4{ms.mv4}, mv8{ms.mv8}  {} 
-    Uint compress(Uint x) const{
-        x = x & m;
-        Uint t;
-        t = x & mv1; 
-        x = (x ^ t) | (t >> 1);
-        t = x & mv2; 
-        x = (x ^ t) | (t >> 2);
-        t = x & mv4; 
-        x = (x ^ t) | (t >> 4);
-        t = x & mv8; 
-        x = (x ^ t) | (t >> 8);
-        return x;
-    }
-    Uint expand(Uint x) const {
-        x = (((x << 8) ^ x) & mv8) ^ x;
-        x = (((x << 4) ^ x) & mv4) ^ x;
-        x = (((x << 2) ^ x) & mv2) ^ x;
-        x = (((x << 1) ^ x) & mv1) ^ x;
-        return  x & m;
-    }
-    Uint msk() const { return m; }
-    Uint nq;
-private:
-    Uint m;
-    Uint mv1;
-    Uint mv2;
-    Uint mv4;
-    Uint mv8;
-    void set_mv(){
-        nq = index_sum(m);
-        Uint _m = m;
-        Uint mk = (~_m) << 1;
-        Uint mp;
-
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mp = mp ^ (mp << 4); 
-        mv1 = mp ^ (mp << 8) & _m; 
-        mk = mk & (~mp); 
-
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mp = mp ^ (mp << 4); 
-        mv2 = mp ^ (mp << 8) & _m; 
-        _m = (_m ^ mv2) | (mv2 >> 2); 
-        mk = mk & (~mp); 
-
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mp = mp ^ (mp << 4); 
-        mv4 = mp ^ (mp << 8) & _m; 
-        _m = (_m ^ mv4) | (mv4 >> 4); 
-        mk = mk & (~mp);
-
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mp = mp ^ (mp << 4); 
-        mv8 = mp ^ (mp << 8) & _m; 
-        _m = (_m ^ mv8) | (mv8 >> 8); 
-        mk = mk & (~mp);
-    }
-};
 
 
-template<>
-struct mask<MaxQubit::Q32>{
-    mask()=default;
-    explicit mask(Uint m): m{m} { set_mv(); }
-    mask(const mask& ms): m{ms.m}, mv1{ms.mv1}, mv2{ms.mv2}, mv4{ms.mv4}, mv8{ms.mv8}, mv16{ms.mv16}  {} 
-    Uint compress(Uint x) const{
-        x = x & m;
-        Uint t;
-        t = x & mv1; 
-        x = (x ^ t) | (t >> 1);
-        t = x & mv2; 
-        x = (x ^ t) | (t >> 2);
-        t = x & mv4; 
-        x = (x ^ t) | (t >> 4);
-        t = x & mv8; 
-        x = (x ^ t) | (t >> 8);
-        t = x & mv16; 
-        x = (x ^ t) | (t >> 16);
-        return x;
-    }
-    Uint expand(Uint x) const {
-        x = (((x << 16) ^ x) & mv16) ^ x;
-        x = (((x << 8) ^ x) & mv8) ^ x;
-        x = (((x << 4) ^ x) & mv4) ^ x;
-        x = (((x << 2) ^ x) & mv2) ^ x;
-        x = (((x << 1) ^ x) & mv1) ^ x;
-        return  x & m;
-    }
-    Uint msk() const { return m; }
-    Uint nq;
-private:
-    Uint m;
-    Uint mv1;
-    Uint mv2;
-    Uint mv4;
-    Uint mv8;
-    Uint mv16;
-    void set_mv(){
-        nq = index_sum(m);
-        Uint _m = m;
-        Uint mk = (~_m) << 1;
-        Uint mp;
 
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mp = mp ^ (mp << 4); 
-        mp = mp ^ (mp << 8); 
-        mv1 = mp ^ (mp << 16) & _m; 
-        mk = mk & (~mp); 
 
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mp = mp ^ (mp << 4); 
-        mp = mp ^ (mp << 8); 
-        mv2 = mp ^ (mp << 16) & _m; 
-        _m = (_m ^ mv2) | (mv2 >> 2); 
-        mk = mk & (~mp); 
+template Tensor<MaxQubit::Q1> operator*(const Tensor<MaxQubit::Q1>&, const Tensor<MaxQubit::Q1>&);
+template Tensor<MaxQubit::Q2> operator*(const Tensor<MaxQubit::Q2>&, const Tensor<MaxQubit::Q2>&);
+template Tensor<MaxQubit::Q4> operator*(const Tensor<MaxQubit::Q4>&, const Tensor<MaxQubit::Q4>&);
+template Tensor<MaxQubit::Q8> operator*(const Tensor<MaxQubit::Q8>&, const Tensor<MaxQubit::Q8>&);
+template Tensor<MaxQubit::Q16> operator*(const Tensor<MaxQubit::Q16>&, const Tensor<MaxQubit::Q16>&);
+template Tensor<MaxQubit::Q32> operator*(const Tensor<MaxQubit::Q32>&, const Tensor<MaxQubit::Q32>&);
 
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mp = mp ^ (mp << 4); 
-        mp = mp ^ (mp << 8); 
-        mv4 = mp ^ (mp << 16) & _m; 
-        _m = (_m ^ mv4) | (mv4 >> 4); 
-        mk = mk & (~mp);
+// template Tensor<MaxQubit::Q1> operator*(const  DiagonalTensor<MaxQubit::Q1>&, const Tensor<MaxQubit::Q1>&);
+// template Tensor<MaxQubit::Q2> operator*(const  DiagonalTensor<MaxQubit::Q2>&, const Tensor<MaxQubit::Q2>&);
+// template Tensor<MaxQubit::Q4> operator*(const  DiagonalTensor<MaxQubit::Q4>&, const Tensor<MaxQubit::Q4>&);
+// template Tensor<MaxQubit::Q8> operator*(const  DiagonalTensor<MaxQubit::Q8>&, const Tensor<MaxQubit::Q8>&);
+// template Tensor<MaxQubit::Q16> operator*(const DiagonalTensor<MaxQubit::Q16>&, const Tensor<MaxQubit::Q16>&);
+// template Tensor<MaxQubit::Q32> operator*(const DiagonalTensor<MaxQubit::Q32>&, const Tensor<MaxQubit::Q32>&);
 
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mp = mp ^ (mp << 4); 
-        mp = mp ^ (mp << 8); 
-        mv8 = mp ^ (mp << 16) & _m; 
-        _m = (_m ^ mv8) | (mv8 >> 8); 
-        mk = mk & (~mp);
+// template Tensor<MaxQubit::Q1> operator*(const Tensor<MaxQubit::Q1>&, const DiagonalTensor<MaxQubit::Q1>&);
+// template Tensor<MaxQubit::Q2> operator*(const Tensor<MaxQubit::Q2>&, const DiagonalTensor<MaxQubit::Q2>&);
+// template Tensor<MaxQubit::Q4> operator*(const Tensor<MaxQubit::Q4>&, const DiagonalTensor<MaxQubit::Q4>&);
+// template Tensor<MaxQubit::Q8> operator*(const Tensor<MaxQubit::Q8>&, const DiagonalTensor<MaxQubit::Q8>&);
+// template Tensor<MaxQubit::Q16> operator*(const Tensor<MaxQubit::Q16>&, const DiagonalTensor<MaxQubit::Q16>&);
+// template Tensor<MaxQubit::Q32> operator*(const Tensor<MaxQubit::Q32>&, const DiagonalTensor<MaxQubit::Q32>&);
 
-        mp = mk ^ (mk << 1); 
-        mp = mp ^ (mp << 2); 
-        mp = mp ^ (mp << 4); 
-        mp = mp ^ (mp << 8); 
-        mv16 = mp ^ (mp << 16) & _m; 
-        _m = (_m ^ mv8) | (mv16 >> 16); 
-        mk = mk & (~mp);
-    }
-};
+// template DiagonalTensor<MaxQubit::Q1> operator*(const DiagonalTensor<MaxQubit::Q1>&, const DiagonalTensor<MaxQubit::Q1>&);
+// template DiagonalTensor<MaxQubit::Q2> operator*(const DiagonalTensor<MaxQubit::Q2>&, const DiagonalTensor<MaxQubit::Q2>&);
+// template DiagonalTensor<MaxQubit::Q4> operator*(const DiagonalTensor<MaxQubit::Q4>&, const DiagonalTensor<MaxQubit::Q4>&);
+// template DiagonalTensor<MaxQubit::Q8> operator*(const DiagonalTensor<MaxQubit::Q8>&, const DiagonalTensor<MaxQubit::Q8>&);
+// template DiagonalTensor<MaxQubit::Q16> operator*(const DiagonalTensor<MaxQubit::Q16>&, const DiagonalTensor<MaxQubit::Q16>&);
+// template DiagonalTensor<MaxQubit::Q32> operator*(const DiagonalTensor<MaxQubit::Q32>&, const DiagonalTensor<MaxQubit::Q32>&);
+
+// -----------------------specialization of mask--------------------------
+
+
+// template struct mask<MaxQubit::Q1>;
+// template struct mask<MaxQubit::Q2>;
+// template struct mask<MaxQubit::Q4>;
+// template struct mask<MaxQubit::Q8>;
+// template struct mask<MaxQubit::Q16>;
+// template struct mask<MaxQubit::Q32>;

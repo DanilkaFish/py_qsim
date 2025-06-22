@@ -71,7 +71,7 @@ public:
         for (int j=0; j < (1<< shape.mup.nq); j++){
             for(int i=0; i < (1<< shape.mdown.nq); i++){
                 z = operator[]((j << shape.mdown.nq) + i);
-                oss << "(" << z.real() <<   << z.imag() <<"i) ";
+                oss << "(" << z.real() << " i"  << z.imag() << ") ";
             }
             oss << "\n";
         }

@@ -5,9 +5,11 @@
 #include "typedef.hpp"
 #include "parameter.hpp"
 #include "Utils/qubits.hpp"
+#include "newTensors/tensor.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/complex.h>
 // #include <pybind11/common.h>
 
 // class VariableExpr{
@@ -31,6 +33,9 @@ PYBIND11_MODULE(MODULE_NAME, m) {
     py::class_<Qubits>(m, "Qubits")
         .def(py::init<Uint>(), "Constructor",
             py::arg("n_qubits")=0)
+        .def(py::init<std::vector<Uint>>(), "Constrcutor",
+            py::arg("qubits")
+        )
         .def_static("from_list",  [](const py::iterable& lst) {
             std::vector<Uint> ids ;
             for (auto&& item : lst) {
@@ -90,6 +95,7 @@ PYBIND11_MODULE(MODULE_NAME, m) {
         ;
         
     py::implicitly_convertible<Variable, ExpressionContainer>();
+    py::implicitly_convertible<std::vector<Uint>, Qubits>();
 
     py::class_<Variable>(m, "Variable")
         .def(py::init<Str, Double>(), "Constructor",
@@ -127,7 +133,6 @@ PYBIND11_MODULE(MODULE_NAME, m) {
         .def_property_readonly("name", &Variable::to_str)
         .def_property("value", &Variable::get_value, &Variable::set_value)
         .def("get_grad", &Variable::get_backward)
-        // .def("backward", &Variable::backward)
         .def("__repr__", &Variable::to_str)
         .def("__str__",
             [](const Variable &a) {
@@ -144,12 +149,38 @@ PYBIND11_MODULE(MODULE_NAME, m) {
         .def("__setitem__", &VariableVector::operator[])
         .def("set_values", &VariableVector::set_values) 
         .def("__len__", &VariableVector::size)
-        // .def("get_values", &VariableVector::get_values) 
         .def("generate_variable", &VariableVector::generate_variable) 
         ;
 
     m.def("sin", &autograd::sin, "sin of expression");
     m.def("cos", &autograd::cos, "cos of expression");
     m.def("pow", &autograd::pow, "pow of expression");
+
+    py::class_<Shape<MaxQubit::Q16>>(m, "Shape")
+        .def(py::init<>(), "Standart constructor")
+        .def(py::init<Qubits, Qubits>(), "Qubit constructor",
+            py::arg("up_indexs"),
+            py::arg("down_indexes")
+        )
+        .def(py::init<Shape<MaxQubit::Q16>>(), "Copy constructor",
+            py::arg("Shape")
+        )
+        .def("__mul__", &prod<MaxQubit::Q16>, py::is_operator())
+        .def("__eq__", &operator==<MaxQubit::Q16>, py::is_operator())
+        .def("__neq__", &operator!=<MaxQubit::Q16>, py::is_operator())
+        .def("__str__", &Shape<MaxQubit::Q16>::str)
+        ;
+    
+    py::class_<Tensor<MaxQubit::Q16>>(m, "Tensor")
+        .def(py::init<Complex>(), "Scalar constructor")
+        .def(py::init<Shape<MaxQubit::Q16>, ComplexVec>(), "data constructor",
+            py::arg("shape"),
+            py::arg("data")
+        )
+        .def("__mul__", &operator*<MaxQubit::Q16>, py::is_operator())
+        // .def("__eq__", &operator==<MaxQubit::Q16>, py::is_operator())
+        // .def("__neq__", &operator!=<MaxQubit::Q16>, py::is_operator())
+        .def("__str__", &Tensor<MaxQubit::Q16>::str)
+        ;
     
 }
