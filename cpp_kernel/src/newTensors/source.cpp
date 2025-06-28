@@ -54,6 +54,7 @@ Tensor<MQ> buffer_prod(Uint com_size,
                        const mask<MQ>& mask_small_new,
                        const mask<MQ>& mask_buffered_new
                     ){
+
     Uint new_size = 1 << (new_shape.size());
     RawData::DataPtr dptr{new ComplexVec(new_size)};
     Complex val;
@@ -86,28 +87,29 @@ Tensor<MQ> operator*(const Tensor<MQ>& lt, const Tensor<MQ>& rt){
     Uint r_size = 1 << rsh.size();
     Uint new_size = 1 << new_shape.size();
     Uint com_size = 1 << com.nq;
-
     if (com_size == l_size){
         mask<MQ> mask4uncom_r((r_size - 1) & (~(rsh.mup.compress(com.msk()) << rsh.mdown.nq)));
+        mask<MQ> mask4com_r((r_size - 1) & (~mask4uncom_r.msk()));
         std::vector<Uint> expandr(com_size);
         for(int k=0; k < com_size; k++){
-            expandr[k] = com.expand(k) << rsh.mdown.nq;
+            expandr[k] = mask4com_r.expand(k) << rsh.mdown.nq;
         }
         return simple_prod<MQ>(com_size, new_shape, lt, rt, expandr, mask4uncom_r);
     }
     if (com_size == r_size){
         mask<MQ> mask4uncom_l((l_size - 1) & (~(lsh.mdown.compress(com.msk()))));
+        mask<MQ> mask4com_l((r_size - 1) & (~mask4uncom_l.msk()));
         std::vector<Uint> expandl(com_size);
         for(int k=0; k < com_size; k++){
-            expandl[k] = com.expand(k);
+            expandl[k] = mask4com_l.expand(k);
         }
-        return simple_prod<MQ>(com_size, new_shape,rt, lt, expandl, mask4uncom_l);
+        return simple_prod<MQ>(com_size, new_shape, rt, lt, expandl, mask4uncom_l);
     }
 
     mask<MQ> mask4uncom_l( (l_size - 1) & (~ (lsh.mdown.compress(com.msk()))) );
     mask<MQ> mask4uncom_r( (r_size - 1) & (~ (rsh.mup.compress(com.msk()) << rsh.mdown.nq)) );
-    mask<MQ> mask4i((new_size - 1) & ((new_shape.mup.compress(lsh.mup.msk())<<new_shape.mdown.nq)) + new_shape.mdown.compress(lsh.mdown.msk() & (~rsh.mup.msk())));
-    mask<MQ> mask4j((new_size - 1) & mask4i.msk() );
+    mask<MQ> mask4i((new_size - 1) & ((new_shape.mup.compress(lsh.mup.msk()) << new_shape.mdown.nq) + new_shape.mdown.compress(lsh.mdown.msk() & (~rsh.mup.msk()))) );
+    mask<MQ> mask4j((new_size - 1) & (~mask4i.msk()) );
     std::vector<Uint> expandl(com_size);
     std::vector<Uint> expandr(com_size);
 
@@ -119,10 +121,23 @@ Tensor<MQ> operator*(const Tensor<MQ>& lt, const Tensor<MQ>& rt){
     }
 
     if (lsh.size() <= rsh.size()){
-        return buffer_prod<MQ>(com_size, new_shape, lt, rt, expandl, expandr, mask4com_l, mask4com_r, mask4i, mask4j);
+        return buffer_prod<MQ>(com_size, new_shape, lt, rt, expandl, expandr, mask4uncom_l, mask4uncom_r, mask4i, mask4j);
     }else{
-        return buffer_prod<MQ>(com_size, new_shape, rt, lt, expandr, expandl, mask4com_r, mask4com_l, mask4j, mask4i);
+        return buffer_prod<MQ>(com_size, new_shape, rt, lt, expandr, expandl, mask4uncom_r, mask4uncom_l, mask4j, mask4i);
     }
+}
+
+template<typename TENSOR_L, typename TENSOR_R>
+bool operator==(const TENSOR_L& tl, const TENSOR_R& tr){
+    if (tl.get_shape() != tr.get_shape()){
+        return false;
+    } 
+    for(int i=0; i < tl.size(); i++){
+        if (tl[i] != tr[i]){
+            return false;
+        }
+    }
+    return true;
 }
 
 template<MaxQubit MQ>
@@ -160,6 +175,7 @@ template Tensor<MaxQubit::Q8> operator*(const Tensor<MaxQubit::Q8>&, const Tenso
 template Tensor<MaxQubit::Q16> operator*(const Tensor<MaxQubit::Q16>&, const Tensor<MaxQubit::Q16>&);
 template Tensor<MaxQubit::Q32> operator*(const Tensor<MaxQubit::Q32>&, const Tensor<MaxQubit::Q32>&);
 
+template bool operator==(const Tensor<MaxQubit::Q16>&, const Tensor<MaxQubit::Q16>&);
 // template Tensor<MaxQubit::Q1> operator*(const  DiagonalTensor<MaxQubit::Q1>&, const Tensor<MaxQubit::Q1>&);
 // template Tensor<MaxQubit::Q2> operator*(const  DiagonalTensor<MaxQubit::Q2>&, const Tensor<MaxQubit::Q2>&);
 // template Tensor<MaxQubit::Q4> operator*(const  DiagonalTensor<MaxQubit::Q4>&, const Tensor<MaxQubit::Q4>&);

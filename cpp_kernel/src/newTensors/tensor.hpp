@@ -62,6 +62,7 @@ public:
         }
     } 
     Tensor(const Tensor<MQ>& data) = default;
+    Uint size() const { return 1 << shape.size(); }
     Complex operator[] (Uint i) const { return rd[i]; }
     Complex& operator[] (Uint i) { return rd[i]; }
     Str str() const{
@@ -71,7 +72,7 @@ public:
         for (int j=0; j < (1<< shape.mup.nq); j++){
             for(int i=0; i < (1<< shape.mdown.nq); i++){
                 z = operator[]((j << shape.mdown.nq) + i);
-                oss << "(" << z.real() <<   << z.imag() <<"i) ";
+                oss << "(" << z.real() << ' ' << z.imag() <<"i) ";
             }
             oss << "\n";
         }
@@ -89,6 +90,9 @@ private:
 
 template<MaxQubit MQ>
 Tensor<MQ> operator*(const Tensor<MQ>&, const Tensor<MQ>&);
+
+template<typename TENSOR_L, typename TENSOR_R>
+bool operator==(const TENSOR_L&, const TENSOR_R&);
 
 // template<MaxQubit MQ>
 // Tensor<MQ> operator*(const DiagonalTensor<MQ>&, const Tensor<MQ>&);

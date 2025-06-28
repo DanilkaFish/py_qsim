@@ -177,10 +177,12 @@ PYBIND11_MODULE(MODULE_NAME, m) {
             py::arg("shape"),
             py::arg("data")
         )
+        .def("__len__", &Tensor<MaxQubit::Q16>::size, "lenght of the tensor")
         .def("__mul__", &operator*<MaxQubit::Q16>, py::is_operator())
-        // .def("__eq__", &operator==<MaxQubit::Q16>, py::is_operator())
+        .def("__eq__", &operator==<Tensor<MaxQubit::Q16>, Tensor<MaxQubit::Q16>>, py::is_operator())
         // .def("__neq__", &operator!=<MaxQubit::Q16>, py::is_operator())
         .def("__str__", &Tensor<MaxQubit::Q16>::str)
         ;
+    py::implicitly_convertible<py::int_, Tensor<MaxQubit::Q16>>();
     
 }

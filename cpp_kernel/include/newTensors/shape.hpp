@@ -32,6 +32,7 @@ struct mask{
     Uint nq;
 };
 
+// TODO set_mv
 template<>
 struct mask<MaxQubit::Q1>{
     mask()=default;
@@ -206,6 +207,26 @@ private:
     Uint mv8;
     void set_mv(){
         nq = index_sum(m);
+
+        // int _m = m;
+        // int mk = (~_m) << 1; 
+        // int mp;
+        // mv[ld_bits] = ld_bits;
+        // for (int i = 0; i < ld_bits; i++) {
+        //     mp = mk ^ (mk << 1); // Parallel prefix.
+        //     mp = mp ^ (mp << 2);
+        //     mp = mp ^ (mp << 4);
+        //     mp = mp ^ (mp << 8);
+        //     mp = mp ^ (mp << 16);
+        //     mv[i] = mp & _m; // Bits to move.
+        //     _m = (_m ^ mv[i]) | (mv[i] >> (1 << i)); // Compress m.
+        //     mk = mk & (~mp);
+        //     if (mk == 0){
+        //         mv[ld_bits] = i + 1;
+        //         break;
+        //     }
+        // }
+
         Uint _m = m;
         Uint mk = (~_m) << 1;
         Uint mp;
@@ -213,29 +234,32 @@ private:
         mp = mk ^ (mk << 1); 
         mp = mp ^ (mp << 2); 
         mp = mp ^ (mp << 4); 
-        mv1 = mp ^ (mp << 8) & _m; 
+        mp = mp ^ (mp << 8); 
+        mv1 = mp & _m; 
+        _m = (_m ^ mv1) | (mv1 >> 1);
         mk = mk & (~mp); 
 
         mp = mk ^ (mk << 1); 
         mp = mp ^ (mp << 2); 
         mp = mp ^ (mp << 4); 
-        mv2 = mp ^ (mp << 8) & _m; 
-        _m = (_m ^ mv2) | (mv2 >> 2); 
+        mp = mp ^ (mp << 8); 
+        mv2 = mp & _m; 
+        _m = (_m ^ mv2) | (mv2 >> 2);
         mk = mk & (~mp); 
 
         mp = mk ^ (mk << 1); 
         mp = mp ^ (mp << 2); 
         mp = mp ^ (mp << 4); 
-        mv4 = mp ^ (mp << 8) & _m; 
-        _m = (_m ^ mv4) | (mv4 >> 4); 
+        mp = mp ^ (mp << 8); 
+        mv4 = mp & _m; 
+        _m = (_m ^ mv4) | (mv4 >> 4);
         mk = mk & (~mp);
 
         mp = mk ^ (mk << 1); 
         mp = mp ^ (mp << 2); 
         mp = mp ^ (mp << 4); 
-        mv8 = mp ^ (mp << 8) & _m; 
-        _m = (_m ^ mv8) | (mv8 >> 8); 
-        mk = mk & (~mp);
+        mp = mp ^ (mp << 8); 
+        mv8 = mp & _m; 
     }
 };
 
