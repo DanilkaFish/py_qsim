@@ -170,18 +170,50 @@ PYBIND11_MODULE(MODULE_NAME, m) {
         .def("__neq__", &operator!=<MaxQubit::Q16>, py::is_operator())
         .def("__str__", &Shape<MaxQubit::Q16>::str)
         ;
-    
+    auto dt = py::class_<DiagonalTensor<MaxQubit::Q16>>(m, "DiagonalTensor");
     py::class_<Tensor<MaxQubit::Q16>>(m, "Tensor")
         .def(py::init<Complex>(), "Scalar constructor")
         .def(py::init<Shape<MaxQubit::Q16>, ComplexVec>(), "data constructor",
             py::arg("shape"),
             py::arg("data")
         )
-        .def("__len__", &Tensor<MaxQubit::Q16>::size, "lenght of the tensor")
-        .def("__mul__", &operator*<MaxQubit::Q16>, py::is_operator())
+        .def("__len__", &Tensor<MaxQubit::Q16>::size, "length of the tensor")
+        .def("__mul__", 
+            [](const Tensor<MaxQubit::Q16>& lt, const Tensor<MaxQubit::Q16>& rt) { 
+                return operator*<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__mul__", 
+            [](const Tensor<MaxQubit::Q16>& lt, const DiagonalTensor<MaxQubit::Q16>& rt) { 
+                return operator*<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
         .def("__eq__", &operator==<Tensor<MaxQubit::Q16>, Tensor<MaxQubit::Q16>>, py::is_operator())
+        // .def("__eq__", &operator==<Tensor<MaxQubit::Q16>, DiagonalTensor<MaxQubit::Q16>>, py::is_operator())
         // .def("__neq__", &operator!=<MaxQubit::Q16>, py::is_operator())
         .def("__str__", &Tensor<MaxQubit::Q16>::str)
+        ;
+
+    dt
+        .def(py::init<Qubits, ComplexVec, std::vector<Uint>>(), "data constructor",
+            py::arg("qubits"),
+            py::arg("data"),
+            py::arg("down_indexes")
+        )
+        .def("__len__", &DiagonalTensor<MaxQubit::Q16>::size, "length of the tensor")
+        .def("__mul__", 
+            [](const DiagonalTensor<MaxQubit::Q16>& lt, const Tensor<MaxQubit::Q16>& rt) { 
+                return operator*<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__mul__", 
+            [](const DiagonalTensor<MaxQubit::Q16>& lt, const DiagonalTensor<MaxQubit::Q16>& rt) { 
+                return operator*<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__eq__", &operator==<DiagonalTensor<MaxQubit::Q16>, Tensor<MaxQubit::Q16>>, py::is_operator())
+        // .def("__neq__", &operator!=<MaxQubit::Q16>, py::is_operator())
+        .def("__str__", &DiagonalTensor<MaxQubit::Q16>::str)
         ;
     py::implicitly_convertible<py::int_, Tensor<MaxQubit::Q16>>();
     

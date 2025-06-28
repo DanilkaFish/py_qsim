@@ -8,7 +8,7 @@ parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
 sys.path.insert(0, parent_dir)
 
 
-from cpp_lib.cpp_kernel import Qubits, Shape, Tensor
+from cpp_lib.cpp_kernel import Qubits, Shape, Tensor, DiagonalTensor
 
 def list_to_qubs_int(ls):
     res = 0
@@ -92,5 +92,56 @@ class TestTensor(unittest.TestCase):
                     self.assertFalse(y[i] * y[j] == Tensor(Shape([i,j],[i,j]), yy), msg=str(y[i] * y[j]))
                     self.assertEqual(z[i] * z[j], Tensor(Shape([i,j],[i,j]), zz), msg=str(z[i] * z[j]))
 
+    def test_diag_prod(self):
+        def diag_x(qub):
+            return DiagonalTensor([qub], [1,1], [1,0])
+        def diag_y(qub):
+            return DiagonalTensor([qub], [-1j, 1j], [1,0])
+        def diag_z(qub):
+            return DiagonalTensor([qub], [1, -1], [0,1])
+        def diag_id(qub):
+            return DiagonalTensor([qub], [1, 1], [0,1])
+
+        def x(qub):
+            return Tensor(Shape([qub],[qub]), [0,1,1,0])
+        def y(qub):
+            return Tensor(Shape([qub],[qub]), [0,-1j,1j,0])
+        def z(qub):
+            return Tensor(Shape([qub],[qub]), [1,0,0,-1])
+        def id(qub):
+            return Tensor(Shape([qub],[qub]), [1,0,0,1])
+        
+        n = 15
+        for i in range(n):
+            self.assertEqual(diag_x(i) * x(i), x(i)*x(i), msg=str(diag_x(i) * x(i)) + str(x(i)*x(i)))
+            self.assertEqual(diag_x(i) * y(i), x(i)*y(i))
+            self.assertEqual(diag_x(i) * z(i), x(i)*z(i))
+            self.assertEqual(diag_y(i) * x(i), y(i)*x(i), msg=str(diag_x(i) * x(i)) + str(x(i)*x(i)))
+            self.assertEqual(diag_y(i) * y(i), y(i)*y(i))
+            self.assertEqual(diag_y(i) * z(i), y(i)*z(i))
+            self.assertEqual(diag_z(i) * x(i), z(i)*x(i), msg=str(diag_x(i) * x(i)) + str(x(i)*x(i)))
+            self.assertEqual(diag_z(i) * y(i), z(i)*y(i))
+            self.assertEqual(diag_z(i) * z(i), z(i)*z(i))
+        for i in range(n):
+            self.assertEqual(x(i) * diag_x(i), x(i) * x(i), msg=str(x(i) * diag_x(i)) + str(x(i) * x(i)))
+            self.assertEqual(y(i) * diag_x(i), y(i) * x(i), msg=str(x(i) * diag_x(i)) + str(x(i) * x(i)))
+            self.assertEqual(z(i) * diag_x(i), z(i) * x(i), msg=str(z(i) * diag_x(i)) + str(z(i) * x(i)))
+            self.assertEqual(x(i) * diag_y(i), x(i) * y(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
+            self.assertEqual(y(i) * diag_y(i), y(i) * y(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
+            self.assertEqual(z(i) * diag_y(i), z(i) * y(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
+            self.assertEqual(x(i) * diag_z(i), x(i) * z(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
+            self.assertEqual(y(i) * diag_z(i), y(i) * z(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
+            self.assertEqual(z(i) * diag_z(i), z(i) * z(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
+        for i in range(15):
+            for j in range(15):
+                self.assertEqual(diag_x(i) * diag_x(j), x(i) * x(j))
+                self.assertEqual(diag_y(i) * diag_x(j), y(i) * x(j) )
+                self.assertEqual(diag_z(i) * diag_x(j), z(i) * x(j) )
+                self.assertEqual(diag_x(i) * diag_y(j), x(i) * y(j) )
+                self.assertEqual(diag_y(i) * diag_y(j), y(i) * y(j) )
+                self.assertEqual(diag_z(i) * diag_y(j), z(i) * y(j) )
+                self.assertEqual(diag_x(i) * diag_z(j), x(i) * z(j) )
+                self.assertEqual(diag_y(i) * diag_z(j), y(i) * z(j) )
+                self.assertEqual(diag_z(i) * diag_z(j), z(i) * z(j) )
 if __name__ == "__main__":
     unittest.main() 
