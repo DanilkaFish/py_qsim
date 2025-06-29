@@ -188,14 +188,38 @@ PYBIND11_MODULE(MODULE_NAME, m) {
                 return operator*<MaxQubit::Q16>(lt,rt);
             }, 
             py::is_operator())
+        .def("__mul__", 
+            [](const Tensor<MaxQubit::Q16>& lt, Complex rt) { 
+                return operator*<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__add__", 
+            [](const Tensor<MaxQubit::Q16>& lt, const Tensor<MaxQubit::Q16>& rt) { 
+                return operator+<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__add__", 
+            [](const Tensor<MaxQubit::Q16>& lt, const DiagonalTensor<MaxQubit::Q16>& rt) { 
+                return operator+<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__sub__", 
+            [](const Tensor<MaxQubit::Q16>& lt, const Tensor<MaxQubit::Q16>& rt) { 
+                return operator-<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__sub__", 
+            [](const Tensor<MaxQubit::Q16>& lt, const DiagonalTensor<MaxQubit::Q16>& rt) { 
+                return operator-<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
         .def("__eq__", &operator==<Tensor<MaxQubit::Q16>, Tensor<MaxQubit::Q16>>, py::is_operator())
         // .def("__eq__", &operator==<Tensor<MaxQubit::Q16>, DiagonalTensor<MaxQubit::Q16>>, py::is_operator())
         // .def("__neq__", &operator!=<MaxQubit::Q16>, py::is_operator())
         .def("__str__", &Tensor<MaxQubit::Q16>::str)
         ;
 
-    dt
-        .def(py::init<Qubits, ComplexVec, std::vector<Uint>>(), "data constructor",
+    dt.def(py::init<Qubits, ComplexVec, std::vector<Uint>>(), "data constructor",
             py::arg("qubits"),
             py::arg("data"),
             py::arg("down_indexes")
@@ -209,6 +233,31 @@ PYBIND11_MODULE(MODULE_NAME, m) {
         .def("__mul__", 
             [](const DiagonalTensor<MaxQubit::Q16>& lt, const DiagonalTensor<MaxQubit::Q16>& rt) { 
                 return operator*<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__mul__", 
+            [](const DiagonalTensor<MaxQubit::Q16>& lt, Complex rt) { 
+                return operator*<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__add__", 
+            [](const DiagonalTensor<MaxQubit::Q16>& lt, const DiagonalTensor<MaxQubit::Q16>& rt) { 
+                return operator+<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__add__", 
+            [](const DiagonalTensor<MaxQubit::Q16>& lt, const Tensor<MaxQubit::Q16>& rt) { 
+                return operator+<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__sub__", 
+            [](const DiagonalTensor<MaxQubit::Q16>& lt, const DiagonalTensor<MaxQubit::Q16>& rt) { 
+                return operator-<MaxQubit::Q16>(lt,rt);
+            }, 
+            py::is_operator())
+        .def("__sub__", 
+            [](const DiagonalTensor<MaxQubit::Q16>& lt, const Tensor<MaxQubit::Q16>& rt) { 
+                return operator-<MaxQubit::Q16>(lt,rt);
             }, 
             py::is_operator())
         .def("__eq__", &operator==<DiagonalTensor<MaxQubit::Q16>, Tensor<MaxQubit::Q16>>, py::is_operator())

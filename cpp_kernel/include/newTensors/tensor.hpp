@@ -37,11 +37,15 @@ public:
         const RawData& rd, 
         std::vector<Uint> down_indexes
     ): BaseTensor<MQ>{Shape<MQ>(qubs, qubs)}, rd{rd}, down_indexes{down_indexes} {}
+    DiagonalTensor(
+        const Shape<MQ>& shape, 
+        const RawData& rd, 
+        std::vector<Uint> down_indexes
+    ): BaseTensor<MQ>{shape}, rd{rd}, down_indexes{down_indexes} {}
 
     Complex operator[] (Uint i) const { 
         Shape<MQ> _sh{this->get_shape()};
         Uint down_mask = ((1 << (_sh.mdown.nq)) - 1) ;
-        // std::cerr << (i); 
         if (down_indexes[i >> _sh.mdown.nq] == (i & down_mask ))
             return rd[i >> _sh.mdown.nq];
         return 0; 
@@ -63,7 +67,15 @@ public:
         oss << "]";
         return oss.str();
     }
+    DiagonalTensor<MQ> operator-(){
+        RawData::DataPtr dptr{new ComplexVec(size())};
+        for (int i=0; i<size(); i++){
+            (*dptr)[i] = -rd[i];
+        }
+        return DiagonalTensor<MQ>(dptr, down_indexes);
+    }
     Uint get_down_index(Uint i) const { return down_indexes[i]; }
+    const std::vector<Uint>& get_down_indexes() const { return down_indexes; }
     using BaseTensor<MQ>::size;
 private:
     using BaseTensor<MQ>::shape;
@@ -82,7 +94,6 @@ public:
             throw std::runtime_error("Inconsistent shape and length of array");
         }
     } 
-    // Tensor(DiagonalTensor)
     Tensor(const Tensor<MQ>& data) = default;
     Complex operator[] (Uint i) const { return rd[i]; }
     Str str() const{
@@ -99,8 +110,16 @@ public:
         oss << "]";
         return oss.str();
     }
+    Tensor<MQ> operator-(){
+        RawData::DataPtr dptr{new ComplexVec(size())};
+        for (int i=0; i<size(); i++){
+            (*dptr)[i] = -rd[i];
+        }
+        return Tensor<MQ>(shape, dptr);
+    }
     
-private:
+    using BaseTensor<MQ>::size;
+    private:
     RawData rd;
     using BaseTensor<MQ>::shape;
     bool is_valid_shape(){
@@ -108,8 +127,7 @@ private:
     }
 };
 
-template<MaxQubit MQ>
-Tensor<MQ> operator*(const Tensor<MQ>&, const Tensor<MQ>&);
+
 
 // template<MaxQubit MQ>
 // Tensor<MQ> operator*(Complex, const Tensor<MQ>&);
@@ -121,12 +139,31 @@ template<typename TENSOR_L, typename TENSOR_R>
 bool operator==(const TENSOR_L&, const TENSOR_R&);
 
 template<MaxQubit MQ>
+Tensor<MQ> operator*(const Tensor<MQ>&, const Tensor<MQ>&);
+
+template<MaxQubit MQ>
 Tensor<MQ> operator*(const DiagonalTensor<MQ>&, const Tensor<MQ>&);
 
 template<MaxQubit MQ>
 Tensor<MQ> operator*(const Tensor<MQ>&, const DiagonalTensor<MQ>&);
-// template<MaxQubit MQ>
-// Tensor<MQ> operator*(const Tensor<MQ>&, const DiagonalTensor<MQ>&);
 
 template<MaxQubit MQ>
 DiagonalTensor<MQ> operator*(const DiagonalTensor<MQ>&, const DiagonalTensor<MQ>&);
+
+template<MaxQubit MQ>
+Tensor<MQ> operator*(Complex, const Tensor<MQ>&);
+
+template<MaxQubit MQ>
+Tensor<MQ> operator*(const Tensor<MQ>&, Complex);
+
+template<MaxQubit MQ>
+DiagonalTensor<MQ> operator*(const DiagonalTensor<MQ>&, Complex);
+
+template<MaxQubit MQ>
+DiagonalTensor<MQ> operator*(Complex, const DiagonalTensor<MQ>&);
+
+template<MaxQubit MQ, typename TENSOR_L, typename TENSOR_R>
+Tensor<MQ> operator+(const TENSOR_L&, const TENSOR_R&);
+
+template<MaxQubit MQ, typename TENSOR_L, typename TENSOR_R>
+Tensor<MQ> operator-(const TENSOR_L&, const TENSOR_R&);

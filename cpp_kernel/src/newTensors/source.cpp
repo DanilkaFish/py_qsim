@@ -222,7 +222,6 @@ DiagonalTensor<MQ> operator*(const DiagonalTensor<MQ>& lt, const DiagonalTensor<
     Shape<MQ> new_shape{prod(lsh, rsh)};
     mask<MQ> com(lsh.mdown.msk() & rsh.mup.msk());
 
-
     RawData::DataPtr dptr{new ComplexVec(1 << new_shape.mup.nq)};
     std::vector<Uint> poss(1 << new_shape.mup.nq);
     for (int iim=0; iim < (1 << new_shape.mup.nq); iim++){
@@ -231,18 +230,73 @@ DiagonalTensor<MQ> operator*(const DiagonalTensor<MQ>& lt, const DiagonalTensor<
         Uint jm_l_expand = lsh.mdown.expand(lt.get_down_index(ii));
         Uint jm_r = rsh.mup.compress(jm_l_expand + (iim_expand & (~lsh.mup.msk())));
         Uint kmk = new_shape.mdown.compress(rsh.mdown.expand(rt.get_down_index(jm_r)) + (jm_l_expand & (~ rsh.mup.msk())));
-
-        // std::cerr << "indexes: " << ii << " " << jm_l_expand << " "  << (jm_l_expand + (iim_expand & (~lsh.mup.msk()))) << " " << jm_r << " " << kmk<< std::endl;
         (*dptr)[iim] = lt.get_by_index(ii) * rt.get_by_index(jm_r);
         poss[iim] = kmk;
     }
     return DiagonalTensor<MQ>(Qubits(Qubs(new_shape.mup.msk())), RawData(dptr), poss);
 }
 
+template<MaxQubit MQ, typename TENSOR_L, typename TENSOR_R>
+Tensor<MQ> operator+(const TENSOR_L& lt, const TENSOR_R& rt){
+    if (lt.get_shape() != rt.get_shape()){
+        throw std::runtime_error("addition of tensors with different sizes");
+    }
+    RawData::DataPtr dptr{new ComplexVec(rt.size())};
+    for(int i=0; i<lt.size(); i++){
+        (*dptr)[i] = lt[i] + rt[i];
+    }
+    return Tensor<MQ>(lt.get_shape(), dptr);
+}
 
+template<MaxQubit MQ, typename TENSOR_L, typename TENSOR_R>
+Tensor<MQ> operator-(const TENSOR_L& lt, const TENSOR_R& rt){
+    if (lt.get_shape() != rt.get_shape()){
+        throw std::runtime_error("addition of tensors with different sizes");
+    }
+    RawData::DataPtr dptr{new ComplexVec(rt.size())};
+    for(int i=0; i<lt.size(); i++){
+        (*dptr)[i] = lt[i] - rt[i];
+    }
+    return Tensor<MQ>(lt.get_shape(), dptr);
+}
 
+template<MaxQubit MQ>
+Tensor<MQ> operator*(Complex val, const Tensor<MQ>& t){
+    RawData::DataPtr dptr{new ComplexVec(t.size())};
+    for(int i=0; i<t.size(); i++){
+        (*dptr)[i] = val * t[i];
+    }
+    return Tensor<MQ>(t.get_shape(), dptr);
+}
 
+template<MaxQubit MQ>
+Tensor<MQ> operator*(const Tensor<MQ>& t, Complex val){
+    RawData::DataPtr dptr{new ComplexVec(t.size())};
+    for(int i=0; i<t.size(); i++){
+        (*dptr)[i] = val * t[i];
+    }
+    return Tensor<MQ>(t.get_shape(), dptr);
+}
 
+template<MaxQubit MQ>
+DiagonalTensor<MQ> operator*(const DiagonalTensor<MQ>& t, Complex val) {
+    Uint size = 1 << t.get_shape().mdown.nq;
+    RawData::DataPtr dptr{new ComplexVec(size)};
+    for(int i=0; i<t.size(); i++){
+        (*dptr)[i] = val * t.get_by_index(i);
+    }
+    return DiagonalTensor<MQ>(t.get_shape(), dptr, t.get_down_indexes());
+}
+
+template<MaxQubit MQ>
+DiagonalTensor<MQ> operator*(Complex val, const DiagonalTensor<MQ>& t) {
+    Uint size = 1 << t.get_shape().mdown.nq;
+    RawData::DataPtr dptr{new ComplexVec(size)};
+    for(int i=0; i<t.size(); i++){
+        (*dptr)[i] = val * t.get_by_index(i);
+    }
+    return DiagonalTensor<MQ>(t.get_shape(), dptr, t.get_down_indexes());
+}
 
 template Tensor<MaxQubit::Q1> operator*(const Tensor<MaxQubit::Q1>&, const Tensor<MaxQubit::Q1>&);
 template Tensor<MaxQubit::Q2> operator*(const Tensor<MaxQubit::Q2>&, const Tensor<MaxQubit::Q2>&);
@@ -259,6 +313,21 @@ template bool operator==(const DiagonalTensor<MaxQubit::Q16>&, const Tensor<MaxQ
 // template Tensor<MaxQubit::Q8> operator*(const  DiagonalTensor<MaxQubit::Q8>&, const Tensor<MaxQubit::Q8>&);
 template Tensor<MaxQubit::Q16> operator*(const DiagonalTensor<MaxQubit::Q16>&, const Tensor<MaxQubit::Q16>&);
 template Tensor<MaxQubit::Q16> operator*(const Tensor<MaxQubit::Q16>&, const DiagonalTensor<MaxQubit::Q16>&);
+template Tensor<MaxQubit::Q16> operator*(Complex, const Tensor<MaxQubit::Q16>&);
+template DiagonalTensor<MaxQubit::Q16> operator*(Complex, const DiagonalTensor<MaxQubit::Q16>&);
+template Tensor<MaxQubit::Q16> operator*(const Tensor<MaxQubit::Q16>&, Complex);
+template DiagonalTensor<MaxQubit::Q16> operator*(const DiagonalTensor<MaxQubit::Q16>&, Complex);
+
+template Tensor<MaxQubit::Q16> operator+(const Tensor<MaxQubit::Q16>&, const DiagonalTensor<MaxQubit::Q16>&);
+template Tensor<MaxQubit::Q16> operator+(const DiagonalTensor<MaxQubit::Q16>&, const DiagonalTensor<MaxQubit::Q16>&);
+template Tensor<MaxQubit::Q16> operator+(const DiagonalTensor<MaxQubit::Q16>&, const Tensor<MaxQubit::Q16>&);
+template Tensor<MaxQubit::Q16> operator+(const Tensor<MaxQubit::Q16>&, const Tensor<MaxQubit::Q16>&);
+
+template Tensor<MaxQubit::Q16> operator-(const Tensor<MaxQubit::Q16>&, const DiagonalTensor<MaxQubit::Q16>&);
+template Tensor<MaxQubit::Q16> operator-(const DiagonalTensor<MaxQubit::Q16>&, const DiagonalTensor<MaxQubit::Q16>&);
+template Tensor<MaxQubit::Q16> operator-(const DiagonalTensor<MaxQubit::Q16>&, const Tensor<MaxQubit::Q16>&);
+template Tensor<MaxQubit::Q16> operator-(const Tensor<MaxQubit::Q16>&, const Tensor<MaxQubit::Q16>&);
+
 template DiagonalTensor<MaxQubit::Q16> operator*(const DiagonalTensor<MaxQubit::Q16>&, const DiagonalTensor<MaxQubit::Q16>&);
 // template Tensor<MaxQubit::Q32> operator*(const DiagonalTensor<MaxQubit::Q32>&, const Tensor<MaxQubit::Q32>&);
 

@@ -3,6 +3,7 @@ import unittest
 
 import sys
 import os
+from itertools import product
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
 sys.path.insert(0, parent_dir)
@@ -17,6 +18,23 @@ def list_to_qubs_int(ls):
     return res
 from quantum_circuit.quantum_circuit import *
 
+def diag_x(qub):
+    return DiagonalTensor([qub], [1,1], [1,0])
+def diag_y(qub):
+    return DiagonalTensor([qub], [-1j, 1j], [1,0])
+def diag_z(qub):
+    return DiagonalTensor([qub], [1, -1], [0,1])
+def diag_id(qub):
+    return DiagonalTensor([qub], [1, 1], [0,1])
+
+def x(qub):
+    return Tensor(Shape([qub],[qub]), [0,1,1,0])
+def y(qub):
+    return Tensor(Shape([qub],[qub]), [0,-1j,1j,0])
+def z(qub):
+    return Tensor(Shape([qub],[qub]), [1,0,0,-1])
+def id(qub):
+    return Tensor(Shape([qub],[qub]), [1,0,0,1])
 
 class TestShape(unittest.TestCase):
     def test_init(self):
@@ -93,55 +111,39 @@ class TestTensor(unittest.TestCase):
                     self.assertEqual(z[i] * z[j], Tensor(Shape([i,j],[i,j]), zz), msg=str(z[i] * z[j]))
 
     def test_diag_prod(self):
-        def diag_x(qub):
-            return DiagonalTensor([qub], [1,1], [1,0])
-        def diag_y(qub):
-            return DiagonalTensor([qub], [-1j, 1j], [1,0])
-        def diag_z(qub):
-            return DiagonalTensor([qub], [1, -1], [0,1])
-        def diag_id(qub):
-            return DiagonalTensor([qub], [1, 1], [0,1])
-
-        def x(qub):
-            return Tensor(Shape([qub],[qub]), [0,1,1,0])
-        def y(qub):
-            return Tensor(Shape([qub],[qub]), [0,-1j,1j,0])
-        def z(qub):
-            return Tensor(Shape([qub],[qub]), [1,0,0,-1])
-        def id(qub):
-            return Tensor(Shape([qub],[qub]), [1,0,0,1])
-        
         n = 15
         for i in range(n):
-            self.assertEqual(diag_x(i) * x(i), x(i)*x(i), msg=str(diag_x(i) * x(i)) + str(x(i)*x(i)))
-            self.assertEqual(diag_x(i) * y(i), x(i)*y(i))
-            self.assertEqual(diag_x(i) * z(i), x(i)*z(i))
-            self.assertEqual(diag_y(i) * x(i), y(i)*x(i), msg=str(diag_x(i) * x(i)) + str(x(i)*x(i)))
-            self.assertEqual(diag_y(i) * y(i), y(i)*y(i))
-            self.assertEqual(diag_y(i) * z(i), y(i)*z(i))
-            self.assertEqual(diag_z(i) * x(i), z(i)*x(i), msg=str(diag_x(i) * x(i)) + str(x(i)*x(i)))
-            self.assertEqual(diag_z(i) * y(i), z(i)*y(i))
-            self.assertEqual(diag_z(i) * z(i), z(i)*z(i))
-        for i in range(n):
-            self.assertEqual(x(i) * diag_x(i), x(i) * x(i), msg=str(x(i) * diag_x(i)) + str(x(i) * x(i)))
-            self.assertEqual(y(i) * diag_x(i), y(i) * x(i), msg=str(x(i) * diag_x(i)) + str(x(i) * x(i)))
-            self.assertEqual(z(i) * diag_x(i), z(i) * x(i), msg=str(z(i) * diag_x(i)) + str(z(i) * x(i)))
-            self.assertEqual(x(i) * diag_y(i), x(i) * y(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
-            self.assertEqual(y(i) * diag_y(i), y(i) * y(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
-            self.assertEqual(z(i) * diag_y(i), z(i) * y(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
-            self.assertEqual(x(i) * diag_z(i), x(i) * z(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
-            self.assertEqual(y(i) * diag_z(i), y(i) * z(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
-            self.assertEqual(z(i) * diag_z(i), z(i) * z(i), msg=str(x(i) * diag_x(i)) + str(x(i)*x(i)))
+            diags = [diag_id(i), diag_x(i), diag_y(i), diag_z(i)]
+            mats = [id(i), x(i), y(i), z(i)]
+            matrices = zip(diags, mats)
+            for ml, mr in product(matrices, matrices):
+                self.assertEqual(ml[0] * mr[0], ml[1] * mr[1], msg=str(ml[0] * mr[0]) + " " + str(ml[1] * mr[1]))
+                self.assertEqual(ml[1] * mr[0], ml[1] * mr[1], msg=str(ml[1] * mr[0]) + " " + str(ml[1] * mr[1]))
+                self.assertEqual(ml[0] * mr[1], ml[1] * mr[1], msg=str(ml[0] * mr[1]) + " " + str(ml[1] * mr[1]))
+
         for i in range(15):
+            diags_i = [diag_id(i), diag_x(i), diag_y(i), diag_z(i)]
+            mats_i = [id(i), x(i), y(i), z(i)]
+            matrices_i = zip(diags_i, mats_i)
             for j in range(15):
-                self.assertEqual(diag_x(i) * diag_x(j), x(i) * x(j))
-                self.assertEqual(diag_y(i) * diag_x(j), y(i) * x(j) )
-                self.assertEqual(diag_z(i) * diag_x(j), z(i) * x(j) )
-                self.assertEqual(diag_x(i) * diag_y(j), x(i) * y(j) )
-                self.assertEqual(diag_y(i) * diag_y(j), y(i) * y(j) )
-                self.assertEqual(diag_z(i) * diag_y(j), z(i) * y(j) )
-                self.assertEqual(diag_x(i) * diag_z(j), x(i) * z(j) )
-                self.assertEqual(diag_y(i) * diag_z(j), y(i) * z(j) )
-                self.assertEqual(diag_z(i) * diag_z(j), z(i) * z(j) )
+                diags_j = [diag_id(i), diag_x(i), diag_y(i), diag_z(i)]
+                mats_j = [id(i), x(i), y(i), z(i)]
+                matrices_j = zip(diags_j, mats_j)
+                for ml, mr in product(matrices_i, matrices_j):
+                    self.assertEqual(ml[0] * mr[0], ml[1] * mr[1], msg=str(ml[0] * mr[0]) + " " + str(ml[1] * mr[1]))
+                    self.assertEqual(ml[1] * mr[0], ml[1] * mr[1], msg=str(ml[1] * mr[0]) + " " + str(ml[1] * mr[1]))
+                    self.assertEqual(ml[0] * mr[1], ml[1] * mr[1], msg=str(ml[0] * mr[1]) + " " + str(ml[1] * mr[1]))
+
+    def test_tensor_addition(self):
+        n = 15
+        for i in range(n):
+            diags = [diag_id(i), diag_x(i), diag_y(i), diag_z(i)]
+            mats = [id(i), x(i), y(i), z(i)]
+            matrices = zip(diags, mats)
+            for ml, mr in product(matrices, matrices):
+                self.assertEqual(ml[0] * mr[0], ml[1] * mr[1], msg=str(ml[0] * mr[0]) + " " + str(ml[1] * mr[1]))
+                self.assertEqual(ml[1] * mr[0], ml[1] * mr[1], msg=str(ml[1] * mr[0]) + " " + str(ml[1] * mr[1]))
+                self.assertEqual(ml[0] * mr[1], ml[1] * mr[1], msg=str(ml[0] * mr[1]) + " " + str(ml[1] * mr[1]))
+
 if __name__ == "__main__":
     unittest.main() 
